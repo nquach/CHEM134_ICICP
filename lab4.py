@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, f_oneway, f
 
 class StdAdd:
 	def __init__(self, x_data, y_data):
@@ -61,6 +61,7 @@ class StdAdd:
 
 		multiplier = 156.25
 		self._prop_error()
+		print "Extrapolated value: " + str(self.c)
 		print "Unknown concentration: " + str(self.c * multiplier)  + " +/- " + str(self.prop_error)
 		print "\n"
 
@@ -93,6 +94,36 @@ class StdAdd:
 		self.LOQ = 10 * self.MSE_resid / self.m
 		print "Limit of Detection: ", self.LOD
 		print "Limit of Quantification: ", self.LOQ
+
+def ANOVA(m_list, std_list, n_list, verbose=False):
+	#m_list = list of means
+	#std_list = list of std devs
+	#n_list = list of number of elements in each sample
+	df1 = len(n_list) - 1
+	m_list = np.asarray(m_list)
+	std_list = np.asarray(std_list)
+	n_list = np.asarray(n_list)
+	df2 = np.sum(n_list) - df1 - 1
+	x_hat = np.sum(n_list * m_list) / float(np.sum(n_list))
+	MS_error = np.sum(n_list * np.square(std_list))/float(df2)
+	MS_group = np.sum(n_list * np.square(m_list - x_hat)) / float(df1)
+	F = MS_group / MS_error
+	p = 1 - f.cdf(F, df1, df2)
+	if verbose:
+		print '\n\n'
+		print 'ANOVA Summary:'
+		print 'df1 =', df1
+		print 'df2 =', df2
+		print 'SS_group =', np.sum(n_list * np.square(m_list - x_hat))
+		print 'SS_error =', np.sum(n_list * np.square(std_list))
+		print 'MS_group =', MS_group
+		print 'MS_error =', MS_error
+		print 'F =', F
+		print 'p-value =', p
+	return F, p
+
+
+
 
 if __name__ == '__main__':
 	std1 = [5, 16.25, 27.5, 38.75, 50]
@@ -187,8 +218,8 @@ if __name__ == '__main__':
 	IC_C = IC_C[3:]  #Remove first data point which is an outlier
 	IC_std = IC_std[3:]
 
-	IC_LOD = IC_LOD[3:]
-	IC_LOQ = IC_LOQ[3:]
+	IC_LOD = np.asarray(IC_LOD[3:])# * multiplier
+	IC_LOQ = np.asarray(IC_LOQ[3:]) #* multiplier
 
 	IC_C = np.asarray(IC_C) * multiplier
 	ICP_C = np.asarray(ICP_C) * multiplier
@@ -206,9 +237,19 @@ if __name__ == '__main__':
 	print "ICP Mean LOQ: ", np.mean(ICP_LOQ)
 
 	t, p = ttest_ind(IC_C, ICP_C, equal_var=False)
-	print "t-Test of independence for concentrations: "
+	print "t-Test of independence for concentrations (no error prop): "
 	print "t = " + str(t)
 	print "p = " + str(p) 
+
+	F, p_F = f_oneway(IC_C, ICP_C)
+	print "F-test of independence for concentrations (no error prop):"
+	print "F = " + str(F)
+	print "p = " + str(p_F)
+
+	F2, p_F2 = ANOVA([np.mean(IC_C), np.mean(ICP_C)], [std_IC, std_ICP], [len(IC_C), len(ICP_C)], verbose=True)
+	print "F-test of independence for concentrations (with error prop):"
+	print "F = " + str(F2)
+	print "p = " + str(p_F2)
 
 	t_LOD, p_LOD = ttest_ind(IC_LOD, ICP_LOD, equal_var=False)
 	print "t-Test of independence for LOD: "
