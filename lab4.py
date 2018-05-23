@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from scipy.stats import ttest_ind, f_oneway, f
+from scipy.stats import ttest_ind, f_oneway, f, t
 
 class StdAdd:
 	def __init__(self, x_data, y_data):
@@ -47,7 +47,7 @@ class StdAdd:
 		print "Term 5: ", np.square(self.c * V1 * V3/float(V2 * np.square(V0))) * np.square(dV0)
 		self.prop_error = np.sqrt(np.square(V1 * V3 / float(V2 * V0)) * np.square(self.error) + np.square(self.c * V3 / float(V2 * V0)) * np.square(dV1) + np.square(self.c * V1 / float(V2 * V0)) * np.square(dV3) + np.square(self.c * V1 * V3 / float(np.square(V2) * V0)) * np.square(dV2) + np.square(self.c * V1 * V3/float(V2 * np.square(V0))) * np.square(dV0))
 
-	def compute_unknown(self, verbose = False):
+	def compute_unknown(self, confidence = 0.95, verbose = False):
 		self.c = -self.b/self.m
 		self.x_bar = np.mean(self.x_data)
 		self.y_bar = np.mean(self.y_data)
@@ -61,8 +61,14 @@ class StdAdd:
 
 		multiplier = 156.25
 		self._prop_error()
+		alpha = 0.5 * (1-confidence)
+		df = self.n - 2
+		t_crit = -t.ppf(alpha, df)
+		self.t_crit = t_crit
+		margin = t_crit * self.error
 		print "Extrapolated value: " + str(self.c)
 		print "Unknown concentration: " + str(self.c * multiplier)  + " +/- " + str(self.prop_error)
+		print "95% CI: [" + str(self.c * multiplier - margin) + ', ' + str(self.c * multiplier + margin) 
 		print "\n"
 
 	def plot(self, save_path):
@@ -120,6 +126,7 @@ def ANOVA(m_list, std_list, n_list, verbose=False):
 		print 'MS_error =', MS_error
 		print 'F =', F
 		print 'p-value =', p
+		print '\n\n'
 	return F, p
 
 
@@ -215,11 +222,11 @@ if __name__ == '__main__':
 		ICP_LOD.append(model_ICP.LOD)
 		ICP_LOQ.append(model_ICP.LOQ)
 		
-	IC_C = IC_C[3:]  #Remove first data point which is an outlier
-	IC_std = IC_std[3:]
+	IC_C = IC_C[4:]  #Remove first data point which is an outlier
+	IC_std = IC_std[4:]
 
-	IC_LOD = np.asarray(IC_LOD[3:])# * multiplier
-	IC_LOQ = np.asarray(IC_LOQ[3:]) #* multiplier
+	IC_LOD = np.asarray(IC_LOD[4:])# * multiplier
+	IC_LOQ = np.asarray(IC_LOQ[4:]) #* multiplier
 
 	IC_C = np.asarray(IC_C) * multiplier
 	ICP_C = np.asarray(ICP_C) * multiplier
